@@ -15,17 +15,26 @@ class Person
 end
 
 class Post
-  backgrounded :do_stuff, :notify_users
+  backgrounded :do_stuff, :notify_users, :check_comments
 
   def do_stuff
   end
   def notify_users
   end
+  def check_comments
+  end
+  def check_comments_backgrounded
+    super(:priority => my_custom_priority)
+  end
+  private
+  def my_custom_priority
+    5
+  end
 end
 
 class Comment
   backgrounded :delete_spam!
-  
+
   def delete_spam!
   end
 end
@@ -50,7 +59,7 @@ class BackgroundedTest < Test::Unit::TestCase
       @person.do_stuff_backgrounded('ryan', 2, 3)
     end
   end
-  
+
   context 'an object with a backgrounded method included punctuation' do
     setup do
       @comment = Comment.new
@@ -70,6 +79,23 @@ class BackgroundedTest < Test::Unit::TestCase
 
       @post.expects(:notify_users)
       @post.notify_users_backgrounded
+    end
+  end
+
+  context 'an object overrides the backgrounded method' do
+    setup do
+      @post = Post.new
+    end
+    
+    should "put all backgrounded methods in seperate a seperate module" do
+      assert Post.ancestors.include?(Post::BackgroundedMethods)
+      assert Post::BackgroundedMethods.instance_methods.map(&:to_s).include?('check_comments_backgrounded')
+      assert Post::BackgroundedMethods.instance_methods.map(&:to_s).include?('do_stuff_backgrounded')
+    end
+    
+    should "be able to call super" do
+      @post.expects(:check_comments).with(:priority => 5)
+      @post.check_comments_backgrounded
     end
   end
 end
